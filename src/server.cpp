@@ -8,6 +8,14 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+using namespace std;
+
+void handle_client(int client_fd){
+  const char* response = "HTTP/1.1 200 OK\r\n\r\n";
+  ssize_t bytes_sent = write(client_fd, response, strlen(response));
+  close(client_fd);
+}
+
 int main(int argc, char **argv) {
   // Flush after every std::cout / std::cerr
   std::cout << std::unitbuf;
@@ -16,7 +24,10 @@ int main(int argc, char **argv) {
   // You can use print statements as follows for debugging, they'll be visible when running tests.
   std::cout << "Logs from your program will appear here!\n";
 
-  // Create a socke and return the id
+
+  // ========================== STEP 1: Create the Socket ==========================
+
+  // Create a socket and return the id
   // AF_INET: the socket will use TCP
   // SOCK_STREAM: indicate the socket will use a stream protocol
   // 0: protocl number, 0 means use the default protocl
@@ -26,7 +37,8 @@ int main(int argc, char **argv) {
    return 1;
   }
   
-  
+  // ========================== STEP 2: Configure the Socket ==========================
+
   int reuse = 1;
 
   //
@@ -38,6 +50,8 @@ int main(int argc, char **argv) {
     std::cerr << "setsockopt failed\n";
     return 1;
   }
+
+  // ========================== STEP 3: Bind to a Port ==========================
 
   //
   // sockarr_in: a struct for setting the address information for binding the socket
@@ -58,6 +72,8 @@ int main(int argc, char **argv) {
   
   int connection_backlog = 5;
 
+  // ========================== STEP 4: Listening for Connections ==========================
+
   //
   // The listen function in C++ is typically used in network programming to mark a socket as a passive socket that will accept incoming connection requests. 
   // It takes two parameters: the socket file descriptor and the backlog, which specifies the maximum number of pending connections the queue can hold.
@@ -72,8 +88,15 @@ int main(int argc, char **argv) {
   
   std::cout << "Waiting for a client to connect...\n";
   
-  accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+  int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+  if (client_fd < 0){
+    std::cerr << "Failed to accept client connection\n";
+    close(server_fd);
+    return 1;
+  }
+
   std::cout << "Client connected\n";
+  handle_client(client_fd);
   
   close(server_fd);
 
