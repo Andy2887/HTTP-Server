@@ -7,12 +7,44 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <sstream>
 
 using namespace std;
 
 void handle_client(int client_fd){
-  const char* response = "HTTP/1.1 200 OK\r\n\r\n";
-  ssize_t bytes_sent = write(client_fd, response, strlen(response));
+  char buffer[4096];
+  ssize_t bytes_received = read(client_fd, buffer, sizeof(buffer) - 1);
+  if (bytes_received > 0) {
+    buffer[bytes_received] = '\0';
+    cout << "Received request:\n" << buffer << endl;
+    // Convert the buffer to string
+    string request(buffer);
+    istringstream request_stream(request);
+    string request_line;
+    getline(request_stream, request_line);
+    istringstream line_stream(request_line);
+    string method, path, version;
+    line_stream >> method >> path >> version;
+    cout << "Method:" << method << endl;
+    cout << "Path:" << path << endl;
+    cout << "Version:" << version << endl;
+
+    const char* response;
+    if (path == "/"){
+      cout << "Valid path. Responding with 200." << endl;
+      response = "HTTP/1.1 200 OK\r\n\r\n";
+    }
+    else {
+      cout << "Invalid path. Responding with 404." << endl;
+      response = "HTTP/1.1 404 Not Found\r\n\r\n";
+    }
+    write(client_fd, response, strlen(response));
+
+  }
+  else{
+    cerr << "Failed to read from client socket\n";
+  }
+
   close(client_fd);
 }
 
