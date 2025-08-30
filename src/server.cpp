@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <sstream>
+#include <vector>
 
 using namespace std;
 
@@ -27,6 +28,28 @@ string handle_echo_command(const string& path){
   return response;
 }
 
+string handle_user_agent_command(vector<string>& headers){
+  string user_agent;
+  
+  // Find the User-Agent header
+  for (const string& header : headers) {
+    if (header.find("User-Agent:") == 0) {
+      user_agent = header.substr(11); // 11 is length of "User-Agent:"
+      // Remove leading and trailing spaces and \r
+      user_agent.erase(0, user_agent.find_first_not_of(" \t"));
+      if (!user_agent.empty() && user_agent.back() == '\r') {
+        user_agent.pop_back();
+      }
+      break;
+    }
+  }
+  
+  cout << "User agent: " << user_agent << endl;
+  string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " 
+    + to_string(user_agent.size()) + "\r\n\r\n" + user_agent;
+  return response;
+}
+
 void handle_client(int client_fd){
   char buffer[4096];
   ssize_t bytes_received = read(client_fd, buffer, sizeof(buffer) - 1);
@@ -35,10 +58,21 @@ void handle_client(int client_fd){
     string request(buffer);
     istringstream request_stream(request);
     string request_line;
+
+    // Read request line
     getline(request_stream, request_line);
     istringstream line_stream(request_line);
     string method, path, version;
     line_stream >> method >> path >> version;
+    
+    // Read header
+    vector<string> headers;
+    while (getline(request_stream, request_line)) {
+        if (request_line == "\r" || request_line == "") {
+            break; // End of headers
+        }
+        headers.push_back(request_line);
+    }
 
     string response;
     if (path == "/"){
@@ -46,6 +80,9 @@ void handle_client(int client_fd){
     }
     else if (path.find("/echo/") == 0){
       response = handle_echo_command(path);
+    }
+    else if (path == "/user-agent"){
+      response = handle_user_agent_command(headers);
     }
     else {
       response = handle_invalid_path();
