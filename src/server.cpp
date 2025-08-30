@@ -11,13 +11,27 @@
 
 using namespace std;
 
+
+string handle_root_path(){
+  return "HTTP/1.1 200 OK\r\n\r\n";
+}
+
+string handle_invalid_path(){
+  return "HTTP/1.1 404 Not Found\r\n\r\n";
+}
+
+string handle_echo_command(const string& path){
+  string echo_str = path.substr(6);
+  string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " 
+    + to_string(echo_str.size()) + "\r\n\r\n" + echo_str;
+  return response;
+}
+
 void handle_client(int client_fd){
   char buffer[4096];
   ssize_t bytes_received = read(client_fd, buffer, sizeof(buffer) - 1);
   if (bytes_received > 0) {
     buffer[bytes_received] = '\0';
-    cout << "Received request:\n" << buffer << endl;
-    // Convert the buffer to string
     string request(buffer);
     istringstream request_stream(request);
     string request_line;
@@ -25,36 +39,30 @@ void handle_client(int client_fd){
     istringstream line_stream(request_line);
     string method, path, version;
     line_stream >> method >> path >> version;
-    cout << "Method:" << method << endl;
-    cout << "Path:" << path << endl;
-    cout << "Version:" << version << endl;
 
-    const char* response;
+    string response;
     if (path == "/"){
-      cout << "Valid path. Responding with 200." << endl;
-      response = "HTTP/1.1 200 OK\r\n\r\n";
+      response = handle_root_path();
+    }
+    else if (path.find("/echo/") == 0){
+      response = handle_echo_command(path);
     }
     else {
-      cout << "Invalid path. Responding with 404." << endl;
-      response = "HTTP/1.1 404 Not Found\r\n\r\n";
+      response = handle_invalid_path();
     }
-    write(client_fd, response, strlen(response));
 
+    write(client_fd, response.c_str(), response.size());
   }
-  else{
-    cerr << "Failed to read from client socket\n";
-  }
-
   close(client_fd);
 }
 
 int main(int argc, char **argv) {
-  // Flush after every std::cout / std::cerr
-  std::cout << std::unitbuf;
-  std::cerr << std::unitbuf;
+  // Flush after every cout / cerr
+  cout << unitbuf;
+  cerr << unitbuf;
   
   // You can use print statements as follows for debugging, they'll be visible when running tests.
-  std::cout << "Logs from your program will appear here!\n";
+  cout << "Logs from your program will appear here!\n";
 
 
   // ========================== STEP 1: Create the Socket ==========================
@@ -65,7 +73,7 @@ int main(int argc, char **argv) {
   // 0: protocl number, 0 means use the default protocl
   int server_fd = socket(AF_INET, SOCK_STREAM, 0);
   if (server_fd < 0) {
-   std::cerr << "Failed to create server socket\n";
+   cerr << "Failed to create server socket\n";
    return 1;
   }
   
@@ -79,7 +87,7 @@ int main(int argc, char **argv) {
   // SO_REUSEADDR: allows the socket to bind to an address that is in a TIME_WAIT state
   //
   if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
-    std::cerr << "setsockopt failed\n";
+    cerr << "setsockopt failed\n";
     return 1;
   }
 
@@ -98,7 +106,7 @@ int main(int argc, char **argv) {
   server_addr.sin_port = htons(4221);
   
   if (bind(server_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) != 0) {
-    std::cerr << "Failed to bind to port 4221\n";
+    cerr << "Failed to bind to port 4221\n";
     return 1;
   }
   
@@ -111,23 +119,23 @@ int main(int argc, char **argv) {
   // It takes two parameters: the socket file descriptor and the backlog, which specifies the maximum number of pending connections the queue can hold.
   // 
   if (listen(server_fd, connection_backlog) != 0) {
-    std::cerr << "listen failed\n";
+    cerr << "listen failed\n";
     return 1;
   }
   
   struct sockaddr_in client_addr;
   int client_addr_len = sizeof(client_addr);
   
-  std::cout << "Waiting for a client to connect...\n";
+  cout << "Waiting for a client to connect...\n";
   
   int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
   if (client_fd < 0){
-    std::cerr << "Failed to accept client connection\n";
+    cerr << "Failed to accept client connection\n";
     close(server_fd);
     return 1;
   }
 
-  std::cout << "Client connected\n";
+  cout << "Client connected\n";
   handle_client(client_fd);
   
   close(server_fd);
