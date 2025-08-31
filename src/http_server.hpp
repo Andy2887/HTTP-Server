@@ -15,4 +15,5 @@ private:
     int port;
     HttpRouter router;
     bool setup_socket();
+    std::string extract_request(std::string& raw_buffer);
 };

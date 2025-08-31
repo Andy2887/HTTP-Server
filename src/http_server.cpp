@@ -49,6 +49,33 @@ bool HttpServer::setup_socket() {
     return true;
 }
 
+std::string HttpServer::extract_request(std::string& raw_buffer){
+    // Find where the header ends
+    size_t header_end = raw_buffer.find("\r\n\r\n");
+
+    size_t cont_len = 0;
+
+    if (header_end != std::string::npos){
+        std::string req_line_and_headers = raw_buffer.substr(0, header_end);
+        // Find content length
+        size_t len_start = req_line_and_headers.find("Content-Length:");
+        
+        if (len_start != std::string::npos){
+            len_start += std::strlen("Content-Length:");
+            size_t len_end = req_line_and_headers.find("\r\n", len_start);
+            std::string len_str = req_line_and_headers.substr(len_start, len_end - len_start);
+            len_str.erase(0, len_str.find_first_not_of(" \t")); // Remove leading spaces
+            len_str.erase(len_str.find_last_not_of(" \t") + 1); // Remove trailing spaces
+            cont_len = std::stoul(len_str);
+        }
+    }
+    else{
+        return "";
+    }
+
+    return raw_buffer.substr(0, header_end + cont_len + 4);
+}
+
 void HttpServer::start() {
     if (!setup_socket()) {
         return;
@@ -74,23 +101,45 @@ void HttpServer::start() {
 }
 
 void HttpServer::handle_client(int client_fd) {
+    std::string raw_buffer;
     char buffer[4096];
-    ssize_t bytes_received = read(client_fd, buffer, sizeof(buffer) - 1);
-    
-    if (bytes_received > 0) {
+
+    // First loop: keep accepting bytes from client
+    while (true){
+        ssize_t bytes_received = read(client_fd, buffer, sizeof(buffer) - 1);
+        
+        if (bytes_received <= 0) {
+            // Client closed connection or error
+            break;
+        }
+
         buffer[bytes_received] = '\0';
-        std::string raw_request(buffer);
-        
-        // Parse request
-        HttpRequest request = HttpParser::parse_request(raw_request);
-        
-        // Route request
-        HttpResponse response = router.route(request);
-        
-        // Send response
-        std::string response_str = HttpParser::serialize_response(response);
-        write(client_fd, response_str.c_str(), response_str.size());
+        raw_buffer += buffer;
+        // Second loop: keep processing the accepted bytes from client
+        while (true){
+            // Extract request from buffer
+            std::string raw_request = extract_request(raw_buffer);
+
+            if (raw_request.empty()) {
+                break;
+            }
+
+            // Parse request
+            HttpRequest request = HttpParser::parse_request(raw_request);
+            
+            // Route request
+            HttpResponse response = router.route(request);
+            
+            // Send response
+            std::string response_str = HttpParser::serialize_response(response);
+            write(client_fd, response_str.c_str(), response_str.size());
+
+            // Remove processed request from raw_buffer
+            raw_buffer.erase(0, raw_request.size());
+
+        }
     }
+
     
     close(client_fd);
 }
