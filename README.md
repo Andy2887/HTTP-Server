@@ -12,7 +12,7 @@ src/
 ├── http_server.hpp/cpp   # Core server functionality and socket management
 ├── http_parser.hpp/cpp   # HTTP request/response parsing
 ├── http_router.hpp/cpp   # URL routing and endpoint matching
-├── http_request.hpp      # HTTP request data structure
+├── http_request.hpp/cpp  # HTTP request data structure
 └── http_response.hpp/cpp # HTTP response data structure and serialization
 ```
 
