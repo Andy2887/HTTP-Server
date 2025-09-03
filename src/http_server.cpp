@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <cstring>
+#include <thread>
 
 HttpServer::HttpServer(int port) : port(port), server_fd(-1) {}
 
@@ -96,7 +97,18 @@ void HttpServer::start() {
         }
         
         std::cout << "Client connected\n";
-        handle_client(client_fd);
+        
+        //
+        // Spawn a new thread for each client
+        // std::thread: when you create a std::thread, you provide a function and its arguments.
+        // The thread starts running that function independently from the main thread.
+        // In this case, the arguments are [this, client_fd]. "this" refers to the instance of HttpServer
+        // detach(): a method of std::thread that lets the thread run independently in the background.
+        // After calling detach(), you cannot join or interact with the thread after detaching. 
+        //
+        std::thread([this, client_fd](){
+            handle_client(client_fd);
+        }).detach();
     }
 }
 
