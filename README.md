@@ -14,6 +14,7 @@ src/
 ├── http_router.hpp/cpp   # URL routing and endpoint matching
 ├── http_request.hpp/cpp  # HTTP request data structure
 └── http_response.hpp/cpp # HTTP response data structure and serialization
+└── websocket.hpp/cpp     # Websocket functionality
 ```
 
 ## Features
