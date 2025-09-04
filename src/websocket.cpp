@@ -21,6 +21,7 @@ WebSocketConnection::~WebSocketConnection() {
     }
 }
 
+// Check if the request is a websocket request
 bool WebSocketConnection::is_websocket_request(const HttpRequest& request) {
     auto connection_it = request.headers.find("Connection");
     auto upgrade_it = request.headers.find("Upgrade");
@@ -36,24 +37,39 @@ bool WebSocketConnection::is_websocket_request(const HttpRequest& request) {
            version_it->second == "13";
 }
 
+// Generate the value for Sec-WebSocket-Accept header required by WebSocket handshake response
 std::string WebSocketConnection::calculate_accept_key(const std::string& websocket_key) {
     std::string combined = websocket_key + WEBSOCKET_MAGIC_STRING;
     
+    /*
+        SHA-1 hashing
+    */
+    // The combined string is hashed using SHA-1
     unsigned char hash[SHA_DIGEST_LENGTH];
     SHA1(reinterpret_cast<const unsigned char*>(combined.c_str()), combined.length(), hash);
     
-    // Base64 encode
+    /*
+        Base64 encoding
+    */
+    // Creates a new memory BIO (buffered I/O object) for storing data in memory
     BIO* bio = BIO_new(BIO_s_mem());
+    // Creates a new BIO filter for Base64 encoding
     BIO* b64 = BIO_new(BIO_f_base64());
+    // Sets the Base64 BIO to not insert newlines in the output
     BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+    // Chains the Base64 filter BIO on top of the memory BIO
     bio = BIO_push(b64, bio);
-    
+
+    // Writes the SHA-1 hash to the BIO chain, which encodes it as Base64
     BIO_write(bio, hash, SHA_DIGEST_LENGTH);
+    // Flushes the BIO to ensure all data is processed and written
     BIO_flush(bio);
     
+    // Retrieves a pointer to the memory buffer containing the Base64-encoded data
     BUF_MEM* bufferPtr;
     BIO_get_mem_ptr(bio, &bufferPtr);
     
+    // Constructs a std::string from the Base64-encoded data
     std::string result(bufferPtr->data, bufferPtr->length);
     BIO_free_all(bio);
     
