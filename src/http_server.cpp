@@ -1,5 +1,6 @@
 #include "http_server.hpp"
 #include "http_parser.hpp"
+#include "websocket.hpp"
 #include <iostream>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -139,7 +140,37 @@ void HttpServer::handle_client(int client_fd) {
             // Parse request
             HttpRequest request = HttpParser::parse_request(raw_request);
             
-            // Route request
+            // Check if this is a WebSocket upgrade request
+            if (WebSocketConnection::is_websocket_request(request)) {
+                // Send WebSocket handshake response
+                HttpResponse response = WebSocketConnection::create_handshake_response(request);
+                std::string response_str = HttpParser::serialize_response(response);
+                write(client_fd, response_str.c_str(), response_str.size());
+                
+                // Create WebSocket connection and handle messages
+                WebSocketConnection ws_conn(client_fd);
+                
+                // Set up message handler
+                ws_conn.set_message_handler([&ws_conn](const std::string& message) {
+                    std::cout << "Received WebSocket message: " << message << std::endl;
+                    // Echo the message back
+                    ws_conn.send_text("Echo: " + message);
+                });
+                
+                // Set up close handler
+                ws_conn.set_close_handler([]() {
+                    std::cout << "WebSocket connection closed" << std::endl;
+                });
+                
+                // Handle WebSocket messages (this will block until connection closes)
+                ws_conn.handle_messages();
+                
+                // WebSocket connection closed, exit client handler
+                close(client_fd);
+                return;
+            }
+            
+            // Route regular HTTP request
             HttpResponse response = router.route(request);
             
             // Send response

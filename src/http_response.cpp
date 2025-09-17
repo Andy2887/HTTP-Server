@@ -16,6 +16,9 @@ std::string HttpResponse::to_string() const {
         case HttpStatus::INTERNAL_ERROR:
             response << " Internal Server Error";
             break;
+        case static_cast<HttpStatus>(101):
+            response << " Switching Protocols";
+            break;
     }
     response << "\r\n";
     
