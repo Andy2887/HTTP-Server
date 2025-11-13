@@ -175,7 +175,13 @@ void HttpServer::handle_client(int client_fd) {
             
             // Send response
             std::string response_str = HttpParser::serialize_response(response);
-            write(client_fd, response_str.c_str(), response_str.size());
+            ssize_t bytes_sent = write(client_fd, response_str.c_str(), response_str.size());
+            
+            if (bytes_sent < 0) {
+                std::cerr << "Failed to send response\n";
+            } else {
+                std::cout << "Sent " << bytes_sent << " bytes\n";
+            }
 
             // Remove processed request from raw_buffer
             raw_buffer.erase(0, raw_request.size());

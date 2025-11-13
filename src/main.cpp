@@ -8,6 +8,9 @@
 HttpResponse handle_root(const HttpRequest& request) {
     HttpResponse response;
     response.status_code = HttpStatus::OK;
+    response.headers["Content-Type"] = "text/plain";
+    response.headers["Content-Length"] = "0";
+    response.body = "";
     return response;
 }
 
